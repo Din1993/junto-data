@@ -1,0 +1,61 @@
+
+"""
+Created on Fri Sep 11 10:40:59 2015
+
+Twitter Posts round 2. I shall conquer this! I shall.
+
+@author: Danielle
+"""
+import tweepy
+import csv
+import os
+import time
+
+consumer_key = "..."
+consumer_secret = "..."
+access_token = "..."
+access_token_secret = "..."
+
+auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+auth.set_access_token(access_token, access_token_secret)
+api = tweepy.API(auth)
+	
+alltweets = []
+
+users = ['User 1', 'User 2', etc.']
+	
+for person in users:
+    print person    
+    
+    new_tweets = api.user_timeline(person,count=200)
+    
+    alltweets.extend(new_tweets)
+    
+    oldest = alltweets[-1].id - 1
+   
+    
+    while len(new_tweets) > 0:
+        
+        print "getting tweets before %s" % (oldest)
+		
+        new_tweets = api.user_timeline(person,count=200,max_id=oldest)
+		
+        alltweets.extend(new_tweets)
+		
+        oldest = alltweets[-1].id - 1
+		
+        print "...%s tweets downloaded so far" % (len(alltweets))
+	
+    outtweets = [[tweet.user.screen_name,tweet.id,tweet.created_at,tweet.text.encode("utf-8"),tweet.retweet_count,tweet.favorite_count,tweet.entities.get('hashtags')] for tweet in alltweets]
+    dir = r"C:\Users\path"
+    if not os.path.exists(dir):
+        os.mkdir(dir)
+
+    with open(os.path.join(dir,'twitterposts-allcandidates-20150915-dm'+'.csv'), 'wb') as f:
+        writer = csv.writer(f)
+        writer.writerow(["screenname","id","created_at","text","retweets","favorites"])
+        writer.writerows(outtweets)
+        
+    time.sleep(60)
+
+print 'Finished! <3'     
