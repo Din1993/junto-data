@@ -1,8 +1,8 @@
 
 """
-Created on Fri Sep 11 10:40:59 2015
+Created: 9/23/2015
 
-Twitter Posts round 2. I shall conquer this! I shall.
+Gather twitter posts for multiple peopleand upload them to postgresql. 
 
 @author: Danielle
 """
@@ -11,6 +11,7 @@ import csv
 import os
 import time
 
+#authenticate with Twitter
 consumer_key = "..."
 consumer_secret = "..."
 access_token = "..."
@@ -19,7 +20,7 @@ access_token_secret = "..."
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_token_secret)
 api = tweepy.API(auth)
-	
+
 alltweets = []
 
 users = ['User 1', 'User 2', etc.']
@@ -51,11 +52,36 @@ for person in users:
     if not os.path.exists(dir):
         os.mkdir(dir)
 
-    with open(os.path.join(dir,'twitterposts-allcandidates-20150915-dm'+'.csv'), 'wb') as f:
+    with open(os.path.join(dir,'posts'+'.csv'), 'wb') as f:
         writer = csv.writer(f)
         writer.writerow(["screenname","id","created_at","text","retweets","favorites"])
         writer.writerows(outtweets)
         
     time.sleep(60)
+    
+    connect = psycopg2.connect("dbname=" " host=" " port=" " user=" " password=" " ")
 
+    cursor = connect.cursor()
+    
+    #Make temp table to upload all new information.
+    create_temp = "CREATE TEMPORARY TABLE tweet_temp (screenname text, created_at date, content_tweet text, retweets integer, favorites integer, hashtags text, tweet_id text PRIMARY KEY);"
+    cursor.execute(create_temp)   
+    
+    #Upload all new information to the temp table.    
+    for row in outtweets:
+        insert_temp = "INSERT INTO tweet_temp (screenname, created_at, content_tweet, retweets, favorites, hashtags, tweet_id) VALUES ('{}', '{}', '{}', {}, {}, '{}', '{}');".format(str(row[0]), str(row[1]), str(row[2]), row[3], row[4], str(row[5]), str(row[6]))
+        cursor.execute(insert_temp)
+    
+    #Update the current table in postgresql.    
+    update = "UPDATE table SET (retweets, favorites) = (tweet_temp.retweets, tweet_temp.favorites) FROM tweet_temp WHERE table.tweet_id = tweet_temp.tweet_id;"        
+    cursor.execute(update)
+     
+    #Add in all new data that is in the temp table, but not in the current table.    
+    insert_new = "INSERT INTO table (SELECT * FROM tweet_temp WHERE tweet_id NOT IN(SELECT tweet_id FROM table));"
+    cursor.execute(insert_new)  
+    
+    cursor.close()
+    connect.commit()
+    connect.close()
+        
 print 'Finished! <3'     
